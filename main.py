@@ -6,10 +6,10 @@ pg.init()
 
 info = pg.display.Info()
 unit = m.sqrt(info.current_w * info.current_h) // 200
-size = width, height = int(info.current_w * 0.9), int(info.current_h * 0.9)
-player_speed_turn = 1
+size = width, height = int(info.current_w * 0.5), int(info.current_h * 0.5)
+player_speed_turn = 3
 bullet_speed = 5 * unit
-shoot_rate = 500
+shoot_rate = 250
 acceleration = 1 * unit
 count_of_walls = 10
 wall_id = -1
@@ -19,17 +19,15 @@ walls = pg.sprite.Group()
 
 
 class Player(pg.sprite.Sprite):
-    def __init__(self, clock, shoot_rate, first_color, center, start_angle, gui, second_color=(0, 0, 1),
+    def __init__(self, id, clock, shoot_rate, first_color, center, start_angle, gui, second_color=(0, 0, 1),
                  third_color=(0, 0, 1), shoot_color=(0, 0, 255), shoot_sec_color=(255, 255, 0)):
         super().__init__()
         self.original_image = pg.Surface((5 * unit, 5.4 * unit))
         self.original_image.set_colorkey((0, 0, 0))
         pg.draw.rect(self.original_image, first_color, (1, 1.4 * unit, 1 * unit, 5.4 * unit - 1))
-        pg.draw.rect(self.original_image, first_color, (5 * unit - 1, 1.4 * unit, 4.8 * unit, 5.4 * unit - 1))
+        pg.draw.rect(self.original_image, first_color, (4 * unit - 1, 1.4 * unit, 4.8 * unit, 5.4 * unit - 1))
         pg.draw.rect(self.original_image, second_color, (1 * unit, 1, 3 * unit, 4.4 * unit))
         pg.draw.rect(self.original_image, (0, 0, 0), (2 * unit - 1, 1, 1.4 * unit, 2.7 * unit))
-        pg.draw.line(self.original_image, third_color, (5, 5), (15, 5), 2)
-        pg.draw.line(self.original_image, third_color, (5, 10), (15, 10), 2)
         self.image = self.original_image
         self.rect = self.image.get_rect()
         self.rect.center = center
@@ -42,6 +40,7 @@ class Player(pg.sprite.Sprite):
         self.clock = clock
         self.current_cooldown = 0
         self.shoot_rate = shoot_rate
+        self.id = id
         #(self.angle)
 
     def update(self):
@@ -74,7 +73,7 @@ class Player(pg.sprite.Sprite):
             self.rect.center = (x, y)
             #(self.angle)
         if keys[self.GUI[4]] and self.current_cooldown <= 0:  # shooting
-            shoot(self.angle - 180, self.rect.center, self.shoot_color, self.shoot_sec_color, self)
+            shoot(self.angle - 180, self.rect.center, self.shoot_color, self.shoot_sec_color, self.id)
             self.current_cooldown = self.shoot_rate
         else:
             self.current_cooldown -= self.clock.get_time()
@@ -109,9 +108,14 @@ class Missle(pg.sprite.Sprite):
         self.rect = self.image.get_rect()  # Replace old rect with new rect.
         self.rect.center = (x, y)
         self.admin = admin
-        #('shooted')
+        #('shooted')/
 
     def update(self):
+        self.original_center = self.rect.center
+        self.image = pg.transform.rotate(self.original_image, self.angle)
+        x, y = self.rect.center  # Save its current center.
+        self.rect = self.image.get_rect()  # Replace old rect with new rect.
+        self.rect.center = (x, y)
         self.rect.move_ip(m.cos((m.radians(self.angle))) * bullet_speed, m.sin(m.radians(self.angle)) * bullet_speed)
 
 
@@ -140,28 +144,24 @@ def shoot(angle, position, first_col, sec_col, admin):
     shoots.add(Missle(position, angle, admin, first_col, sec_col))
 
 
-def shoot_del(group, admins, size):
+def shoot_del(group, size):
     buff = pg.sprite.Group()
     for i in group:
         if i.rect.left < -40 or i.rect.right > size[0] + 40 or i.rect.top < -40 or i.rect.bottom > size[1] + 40:
             group.remove(i)
-        else:
-            for n in admins:
-                buff.add(n)
-                if i.admin != n and pg.sprite.spritecollide(i, buff, True):
-                    group.remove(i)
-                buff.remove(n)
-
 
 screen = pg.display.set_mode(size)
 time = pg.time.Clock()
 players = pg.sprite.Group()
 # Full player parameters
-players.add(Player(time, shoot_rate, (255, 0, 0), (0, height // 2), -90,
-                   (pg.K_w, pg.K_a, pg.K_s, pg.K_d, pg.K_SPACE), (0, 0, 1), (0, 0, 1), (0, 0, 255), (255, 255, 0)))
+players.add(Player(0, time, shoot_rate, (255, 0, 0), (0, height // 2), -180,
+                   (pg.K_w, pg.K_a, pg.K_s, pg.K_d, pg.K_TAB), (0, 0, 1), (0, 0, 1), (0, 0, 255), (255, 255, 0)))
 # Must-have player parameters
-players.add(Player(time, shoot_rate, (0, 255, 0), (width // 2, height // 2), 90,
+players.add(Player(1, time, shoot_rate, (0, 255, 0), (width, height // 2), 0,
                    (pg.K_UP, pg.K_LEFT, pg.K_DOWN, pg.K_RIGHT, pg.K_RSHIFT)))
+players.add(Player(2, time, shoot_rate, (0, 0, 255), (width // 2, 0), -90,
+                   (pg.K_u, pg.K_h, pg.K_n, pg.K_k, pg.K_m)))
+respawn = [0] * len(list(players))
 
 while True:
     # checking exit
@@ -171,12 +171,21 @@ while True:
 
     # making bacground
     screen.fill((200, 200, 200))
-
-    # updating all objects
-    players.draw(screen)
-    players.update()
+    for i in players:
+        if not respawn[i.id]:
+            screen.blit(i.image, i.rect)
+            i.update()
+        else:
+            respawn[i.id] -= 1
     shoots.update()
     shoots.draw(screen)
-    shoot_del(shoots, players, size)
+    group = pg.sprite.Group()
+    for i in players:
+        for n in shoots:
+            group.add(n)
+            if respawn[i.id] == 0:
+                if n.admin != i.id and pg.sprite.spritecollide(i, group, True):
+                    respawn[i.id] = FPS
+    shoot_del(shoots, size)
     pg.display.flip()
     time.tick(FPS)

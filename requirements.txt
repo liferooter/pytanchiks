@@ -1,0 +1,2 @@
+requests
+pygame==2.0.0.dev6
