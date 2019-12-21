@@ -1,23 +1,37 @@
-import pygame as pg
-import math as m
-import random as r
+# update 0.3: portal time!
 
+import pygame as pg
+import math
+import random
+
+# initing pygame
 pg.init()
 
+# making constants
 info = pg.display.Info()
-unit = m.sqrt(info.current_w * info.current_h) // 200
-size = width, height = int(info.current_w * 0.5), int(info.current_h * 0.5)
-player_speed_turn = 3
-bullet_speed = 5 * unit
-shoot_rate = 250
-acceleration = 1 * unit
+unit: int = int(math.sqrt(info.current_w * info.current_h) // 200)
+size = width, height = int(info.current_w * 0.7), int(info.current_h * 0.6)
+player_turn_speed = 2.5
+bullet_speed = 3 * unit
+shoot_rate = 1000
+acceleration = 2 * unit
 count_of_walls = 10
 wall_id = -1
 FPS = 30
+revive_rate = FPS * 3
+bullet_life_time = FPS * 3
+quantity_of_teleports = 12
+
+# making usables
+players = pg.sprite.Group()
 shoots = pg.sprite.Group()
-walls = pg.sprite.Group()
+teleports = pg.sprite.Group()
+exits = pg.sprite.Group()
+teleport_enters = {i: (random.randint(0, width), random.randint(0, height)) for i in range(quantity_of_teleports)}
+teleport_exits = {i: (random.randint(0, width), random.randint(0, height)) for i in range(quantity_of_teleports)}
 
 
+# making in-game objects classes
 class Player(pg.sprite.Sprite):
     def __init__(self, id, clock, shoot_rate, first_color, center, start_angle, gui, second_color=(0, 0, 1),
                  third_color=(0, 0, 1), shoot_color=(0, 0, 255), shoot_sec_color=(255, 255, 0)):
@@ -41,7 +55,7 @@ class Player(pg.sprite.Sprite):
         self.current_cooldown = 0
         self.shoot_rate = shoot_rate
         self.id = id
-        #(self.angle)
+        # (self.angle)
 
     def update(self):
         self.original_center = self.rect.center
@@ -51,27 +65,27 @@ class Player(pg.sprite.Sprite):
         self.rect.center = (x, y)
         keys = pg.key.get_pressed()
         if keys[self.GUI[2]]:  # go forward
-            self.rect.move_ip(m.cos(m.radians(self.angle)) * acceleration,
-                              m.sin(m.radians(self.angle)) * acceleration)
+            self.rect.move_ip(math.cos(math.radians(self.angle)) * acceleration,
+                              math.sin(math.radians(self.angle)) * acceleration)
         if keys[self.GUI[1]]:  # rotate right
             self.image = pg.transform.rotate(self.original_image, -self.angle + 90)
-            self.angle -= player_speed_turn  # Value will reapeat after 359. This prevents angle to overflow.
+            self.angle -= player_turn_speed  # Value will reapeat after 359. This prevents angle to overflow.
             self.angle %= 360
             x, y = self.rect.center  # Save its current center.
             self.rect = self.image.get_rect()  # Replace old rect with new rect.
             self.rect.center = (x, y)
-            #(self.angle)
+            # (self.angle)
         if keys[self.GUI[0]]:  # move backward
-            self.rect.move_ip(-m.cos(m.radians(self.angle)) * acceleration,
-                              -m.sin(m.radians(self.angle)) * acceleration)
-        if keys[self.GUI[3]]: # rotate left
+            self.rect.move_ip(-math.cos(math.radians(self.angle)) * acceleration,
+                              -math.sin(math.radians(self.angle)) * acceleration)
+        if keys[self.GUI[3]]:  # rotate left
             self.image = pg.transform.rotate(self.original_image, -self.angle + 90)
-            self.angle += player_speed_turn
+            self.angle += player_turn_speed
             self.angle %= 360
             x, y = self.rect.center
             self.rect = self.image.get_rect()
             self.rect.center = (x, y)
-            #(self.angle)
+            # (self.angle)
         if keys[self.GUI[4]] and self.current_cooldown <= 0:  # shooting
             shoot(self.angle - 180, self.rect.center, self.shoot_color, self.shoot_sec_color, self.id)
             self.current_cooldown = self.shoot_rate
@@ -86,9 +100,12 @@ class Player(pg.sprite.Sprite):
         if self.rect.center[1] > height + 30:
             self.rect.center = (self.rect.center[0], -30)
 
+    def teleport(self, position):
+        self.rect.center = position
+
 
 class Missle(pg.sprite.Sprite):
-    def __init__(self, coordinates, angle,  admin, first_color=(255, 0, 255), second_color=None):
+    def __init__(self, coordinates, angle, admin_id, life_time, first_color=(255, 0, 255), second_color=None):
         super().__init__()
         self.original_image = pg.Surface((6, 10))
         self.original_image.set_colorkey((0, 0, 0))
@@ -107,8 +124,9 @@ class Missle(pg.sprite.Sprite):
         x, y = self.rect.center  # Save its current center.
         self.rect = self.image.get_rect()  # Replace old rect with new rect.
         self.rect.center = (x, y)
-        self.admin = admin
-        #('shooted')/
+        self.admin_id = admin_id
+        self.life_time = life_time
+        # ('shooted')/
 
     def update(self):
         self.original_center = self.rect.center
@@ -116,52 +134,88 @@ class Missle(pg.sprite.Sprite):
         x, y = self.rect.center  # Save its current center.
         self.rect = self.image.get_rect()  # Replace old rect with new rect.
         self.rect.center = (x, y)
-        self.rect.move_ip(m.cos((m.radians(self.angle))) * bullet_speed, m.sin(m.radians(self.angle)) * bullet_speed)
+        self.rect.move_ip(math.cos((math.radians(self.angle))) * bullet_speed,
+                          math.sin(math.radians(self.angle)) * bullet_speed)
+        self.life_time -= 1
 
-
-class Simple_wall(pg.sprite.Sprite):
-    def __init__(self, position, color=(50, 50, 50), circles=2, sec_col=[200, 200, 100]):
-        super().__init__()
-        self.sec_col = sec_col
-        self.image = pg.Surface(20, 20)
-        self.image.set_colorkey(0, 0, 0)
-        pg.draw.circle(self.image, color, (10, 10), 4)
-        for i in range(circles):
-            pg.draw.circle(self.image, tuple(self.sec_col), (10, 10), r.randint(0, 3))
-            self.sec_col[r.randint(0, 2)] -= r.randint(0, 50)
-            for n in range(len(sec_col)):
-                if self.sec_col[n] < 40:
-                    self.sec_col[n] = 200
-        self.rect = self.image.get_rect()
+    def teleport(self, position):
         self.rect.center = position
+
+
+class Teleport(pg.sprite.Sprite):
+    def __init__(self, id, dict, color):
+        super().__init__()
+        self.original_image = pg.Surface((4 * unit, 4 * unit))
+        self.original_image.set_colorkey((0, 0, 0))
+        pg.draw.circle(self.original_image, color, (2 * unit, 2 * unit), 2 * unit)
+        self.image = self.original_image
+        self.rect = self.image.get_rect()
+        self.rect.center = dict.get(id)
+        self.id = id
 
     def update(self):
         pass
 
 
-def shoot(angle, position, first_col, sec_col, admin):
-    global shoots
-    shoots.add(Missle(position, angle, admin, first_col, sec_col))
+class Teleport_exit(pg.sprite.Sprite):
+    def __init__(self, id, dict, color):
+        super().__init__()
+        self.original_image = pg.Surface((4 * unit, 4 * unit))
+        self.original_image.set_colorkey((0, 0, 0))
+        pg.draw.circle(self.original_image, color, (2 * unit, 2 * unit), 2 * unit, unit // 2)
+        self.image = self.original_image
+        self.rect = self.image.get_rect()
+        self.rect.center = dict.get(id)
+        self.id = id
+
+    def update(self):
+        pass
+
+
+# making utilities
+def shoot(angle, position, first_col, sec_col, admin_id):
+    global shoots, bullet_life_time
+    shoots.add(Missle(position, angle, admin_id, bullet_life_time, first_col, sec_col))
 
 
 def shoot_del(group, size):
-    buff = pg.sprite.Group()
     for i in group:
         if i.rect.left < -40 or i.rect.right > size[0] + 40 or i.rect.top < -40 or i.rect.bottom > size[1] + 40:
             group.remove(i)
 
+
+def teleport_generator(quantity):
+    global teleports, exits
+    for i in range(quantity):
+        color = (random.randint(1, 255), random.randint(1, 255), random.randint(1, 255))
+        while abs(teleport_enters.get(i)[0] - teleport_exits.get(i)[0]) <= 10 * unit \
+                and abs(teleport_enters.get(i)[1] - teleport_exits.get(i)[1]) <= 10 * unit:
+            teleport_enters[i] = (random.randint(0, width), random.randint(0, height))
+            teleport_exits[i] = (random.randint(0, width), random.randint(0, height))
+        teleports.add(Teleport(i, teleport_enters, color))
+        exits.add(Teleport_exit(i, teleport_exits, color))
+
+
+# making pygame needs
 screen = pg.display.set_mode(size)
+pg.display.set_caption('Pytanks')
+logo = pg.image.load('images/logo.png')
+pg.display.set_icon(logo)
 time = pg.time.Clock()
-players = pg.sprite.Group()
-# Full player parameters
+
+# making players:
+    # full player parameters
 players.add(Player(0, time, shoot_rate, (255, 0, 0), (0, height // 2), -180,
-                   (pg.K_w, pg.K_a, pg.K_s, pg.K_d, pg.K_TAB), (0, 0, 1), (0, 0, 1), (0, 0, 255), (255, 255, 0)))
-# Must-have player parameters
+                   (pg.K_w, pg.K_a, pg.K_s, pg.K_d, pg.K_SPACE), (0, 0, 1), (0, 0, 1), (0, 0, 255), (255, 255, 0)))
+    # must-have player parameters
 players.add(Player(1, time, shoot_rate, (0, 255, 0), (width, height // 2), 0,
                    (pg.K_UP, pg.K_LEFT, pg.K_DOWN, pg.K_RIGHT, pg.K_RSHIFT)))
-players.add(Player(2, time, shoot_rate, (0, 0, 255), (width // 2, 0), -90,
-                   (pg.K_u, pg.K_h, pg.K_n, pg.K_k, pg.K_m)))
-respawn = [0] * len(list(players))
+
+# making in-game constant objects
+teleport_generator(quantity_of_teleports)
+
+# generate player revive list
+time_to_players_reviving = [0] * len(list(players))
 
 while True:
     # checking exit
@@ -171,21 +225,51 @@ while True:
 
     # making bacground
     screen.fill((200, 200, 200))
+    group = pg.sprite.Group()
+
+    # updating players
     for i in players:
-        if not respawn[i.id]:
+        for n in teleports:
+            group.add(n)
+            if pg.sprite.spritecollide(i, group, False):
+                i.teleport(teleport_exits.get(n.id))
+            group.remove(n)
+        if not time_to_players_reviving[i.id]:
             screen.blit(i.image, i.rect)
             i.update()
         else:
-            respawn[i.id] -= 1
-    shoots.update()
+            time_to_players_reviving[i.id] -= 1
+
+    # bullets updating
+    for i in shoots:
+        if i.life_time >= 0:
+            i.update()
+        else:
+            shoots.remove(i)
+            continue
+        for n in teleports:
+            group.add(n)
+            if pg.sprite.spritecollide(i, group, False):
+                i.teleport(teleport_exits.get(n.id))
+            group.remove(n)
     shoots.draw(screen)
+
+    # drawing statical objects
+    teleports.draw(screen)
+    exits.draw(screen)
     group = pg.sprite.Group()
+
+    # updating players (again)
     for i in players:
         for n in shoots:
             group.add(n)
-            if respawn[i.id] == 0:
-                if n.admin != i.id and pg.sprite.spritecollide(i, group, True):
-                    respawn[i.id] = FPS
+            if time_to_players_reviving[i.id] == 0:
+                if n.admin_id != i.id and pg.sprite.spritecollide(i, group, True):
+                    time_to_players_reviving[i.id] = revive_rate
+    # activate utilities
     shoot_del(shoots, size)
+
+    # updating screen
     pg.display.flip()
+
     time.tick(FPS)
