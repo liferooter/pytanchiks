@@ -11,17 +11,17 @@ pg.init()
 info = pg.display.Info()
 unit: int = int(math.sqrt(info.current_w * info.current_h) // 200)
 size = width, height = int(info.current_w * 0.7), int(info.current_h * 0.6)
-player_turn_speed = 2.5
+tank_turn_speed = 2.5
 bullet_speed = 3 * unit
 shoot_rate = 1000
-acceleration = 2 * unit
+tank_speed = 2 * unit
 FPS = 30
 revive_rate = FPS * 3
 bullet_life_time = FPS * 3
 quantity_of_teleports = 12
 
 # making usables
-players = pg.sprite.Group()
+tanks = pg.sprite.Group()
 shoots = pg.sprite.Group()
 teleports = pg.sprite.Group()
 exits = pg.sprite.Group()
@@ -30,7 +30,7 @@ teleport_exits = {i: (random.randint(0, width), random.randint(0, height)) for i
 
 
 # making in-game objects classes
-class Player(pg.sprite.Sprite):
+class tank(pg.sprite.Sprite):
     def __init__(self, id, clock, shoot_rate, first_color, center, start_angle, gui, second_color=(0, 0, 1),
                  third_color=(0, 0, 1), shoot_color=(0, 0, 255), shoot_sec_color=(255, 255, 0)):
         super().__init__()
@@ -63,22 +63,22 @@ class Player(pg.sprite.Sprite):
         self.rect.center = (x, y)
         keys = pg.key.get_pressed()
         if keys[self.GUI[2]]:  # go forward
-            self.rect.move_ip(math.cos(math.radians(self.angle)) * acceleration,
-                              math.sin(math.radians(self.angle)) * acceleration)
+            self.rect.move_ip(math.cos(math.radians(self.angle)) * tank_speed,
+                              math.sin(math.radians(self.angle)) * tank_speed)
         if keys[self.GUI[1]]:  # rotate right
             self.image = pg.transform.rotate(self.original_image, -self.angle + 90)
-            self.angle -= player_turn_speed  # Value will reapeat after 359. This prevents angle to overflow.
+            self.angle -= tank_turn_speed  # Value will reapeat after 359. This prevents angle to overflow.
             self.angle %= 360
             x, y = self.rect.center  # Save its current center.
             self.rect = self.image.get_rect()  # Replace old rect with new rect.
             self.rect.center = (x, y)
             # (self.angle)
         if keys[self.GUI[0]]:  # move backward
-            self.rect.move_ip(-math.cos(math.radians(self.angle)) * acceleration,
-                              -math.sin(math.radians(self.angle)) * acceleration)
+            self.rect.move_ip(-math.cos(math.radians(self.angle)) * tank_speed,
+                              -math.sin(math.radians(self.angle)) * tank_speed)
         if keys[self.GUI[3]]:  # rotate left
             self.image = pg.transform.rotate(self.original_image, -self.angle + 90)
-            self.angle += player_turn_speed
+            self.angle += tank_turn_speed
             self.angle %= 360
             x, y = self.rect.center
             self.rect = self.image.get_rect()
@@ -201,19 +201,19 @@ logo = pg.image.load('images/logo.png')
 pg.display.set_icon(logo)
 time = pg.time.Clock()
 
-# making players:
-    # full player parameters
-players.add(Player(0, time, shoot_rate, (255, 0, 0), (0, height // 2), -180,
+# making tanks:
+    # full tank parameters
+tanks.add(tank(0, time, shoot_rate, (255, 0, 0), (0, height // 2), -180,
                    (pg.K_w, pg.K_a, pg.K_s, pg.K_d, pg.K_SPACE), (0, 0, 1), (0, 0, 1), (0, 0, 255), (255, 255, 0)))
-    # must-have player parameters
-players.add(Player(1, time, shoot_rate, (0, 255, 0), (width, height // 2), 0,
+    # must-have tank parameters
+tanks.add(tank(1, time, shoot_rate, (0, 255, 0), (width, height // 2), 0,
                    (pg.K_UP, pg.K_LEFT, pg.K_DOWN, pg.K_RIGHT, pg.K_RSHIFT)))
 
 # making in-game constant objects
 teleport_generator(quantity_of_teleports)
 
-# generate player revive list
-time_to_players_reviving = [0] * len(list(players))
+# generate tank revive list
+time_to_tanks_reviving = [0] * len(list(tanks))
 
 while True:
     # checking exit
@@ -225,18 +225,18 @@ while True:
     screen.fill((200, 200, 200))
     group = pg.sprite.Group()
 
-    # updating players
-    for i in players:
+    # updating tanks
+    for i in tanks:
         for n in teleports:
             group.add(n)
             if pg.sprite.spritecollide(i, group, False):
                 i.teleport(teleport_exits.get(n.id))
             group.remove(n)
-        if not time_to_players_reviving[i.id]:
+        if not time_to_tanks_reviving[i.id]:
             screen.blit(i.image, i.rect)
             i.update()
         else:
-            time_to_players_reviving[i.id] -= 1
+            time_to_tanks_reviving[i.id] -= 1
 
     # bullets updating
     for i in shoots:
@@ -257,13 +257,13 @@ while True:
     exits.draw(screen)
     group = pg.sprite.Group()
 
-    # updating players (again)
-    for i in players:
+    # updating tanks (again)
+    for i in tanks:
         for n in shoots:
             group.add(n)
-            if time_to_players_reviving[i.id] == 0:
+            if time_to_tanks_reviving[i.id] == 0:
                 if n.admin_id != i.id and pg.sprite.spritecollide(i, group, True):
-                    time_to_players_reviving[i.id] = revive_rate
+                    time_to_tanks_reviving[i.id] = revive_rate
     # activate utilities
     shoot_del(shoots, size)
 
