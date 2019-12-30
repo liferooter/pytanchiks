@@ -176,8 +176,8 @@ UNIT = int(math.sqrt(info.current_w * info.current_h) // 200)
 SIZE = width, height = int(info.current_w * 0.7), int(info.current_h * 0.6)
 TANK_TURN_SPEED = 2.5
 BULLET_SPEED = 100 * UNIT
-RECHARGE_TIME = 0
-TANK_SPEED = 30 * UNIT
+RECHARGE_TIME = 1
+TANK_SPEED = 15 * UNIT
 FPS = 30
 RECOVERY_TIME = 3
 FIRING_RANGE = 150 * UNIT
