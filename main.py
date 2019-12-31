@@ -278,7 +278,7 @@ while True:
         for tank in tanks:
             if tank.is_alive and missile.master_id != tank.id and pg.sprite.spritecollide(tank, current_missile, True):
                 last_death_time[tank.id] = time.time()
-                tank.x, tank.y = (random.randint(0, SIZE[0]), random.randint(0, SIZE[1]))
+                tank.rect.center = tank.x, tank.y = (random.randint(0, SIZE[0]), random.randint(0, SIZE[1]))
 
         for portal_entrance in portal_entrances:
             current_portal.add(portal_entrance)
