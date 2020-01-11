@@ -148,10 +148,10 @@ class PortalExit(pg.sprite.Sprite):
 
 
 def is_missile_in_battlefield(checked_missile):
-    if checked_missile.rect.left < -5 * UNIT\
-            or checked_missile.rect.right > SIZE[0] + 5 * UNIT\
-            or checked_missile.rect.top < -5 * UNIT or\
-            missile.rect.bottom > SIZE[1] + 5 * UNIT:
+    if checked_missile.rect.left < -10 * UNIT\
+            or checked_missile.rect.right > SIZE[0] + 10 * UNIT\
+            or checked_missile.rect.top < -10 * UNIT or\
+            missile.rect.bottom > SIZE[1] + 10 * UNIT:
         return False
     return True
 
@@ -165,6 +165,8 @@ def generate_portals(quantity):
             portal_exits_coordinates[i] = (random.randint(0, width), random.randint(0, height))
         portal_entrances.add(PortalEntrance(i, portal_entrances_coordinates, color))
         portal_exits.add(PortalExit(i, portal_exits_coordinates, color))
+    for i in portal_entrances:
+        portal_entrances_colliders.append(pg.mask.from_surface(i.image))
 
 
 # Initializing PyGame
@@ -192,6 +194,7 @@ portal_entrances_coordinates = {
     i: (random.randint(0, width), random.randint(0, height)) for i in range(PORTALS_QUANTITY)
 }
 portal_exits_coordinates = {i: (random.randint(0, width), random.randint(0, height)) for i in range(PORTALS_QUANTITY)}
+portal_entrances_colliders = []
 
 
 # Game window
@@ -211,9 +214,9 @@ tanks.add(Tank(0, (255, 0, 0), (0, height // 2), -180,
                     "LEFT": pg.K_a,
                     "SHOOT": pg.K_SPACE
                 },
-               (0, 0, 1), (0, 0, 255)))
+               (0, 0, 1), (255, 0, 0)))
 
-tanks.add(Tank(1, (0, 255, 0), (width, height // 2), 0,
+tanks.add(Tank(1, (0, 0, 255), (width, height // 2), 0,
                {
                     "FORWARD": pg.K_UP,
                     "BACKWARD": pg.K_DOWN,
@@ -221,7 +224,7 @@ tanks.add(Tank(1, (0, 255, 0), (width, height // 2), 0,
                     "LEFT": pg.K_LEFT,
                     "SHOOT": pg.K_RSHIFT
                },
-               (0, 0, 1), (255, 0, 0)))
+               (0, 0, 1), (0, 0, 255)))
 
 # making in-game constant objects
 generate_portals(PORTALS_QUANTITY)
@@ -279,6 +282,7 @@ while True:
             if tank.is_alive and missile.master_id != tank.id and pg.sprite.spritecollide(tank, current_missile, True):
                 last_death_time[tank.id] = time.time()
                 tank.rect.center = tank.x, tank.y = (random.randint(0, SIZE[0]), random.randint(0, SIZE[1]))
+                tank.angle = random.randint(0, 11) * 30
 
         for portal_entrance in portal_entrances:
             current_portal.add(portal_entrance)
