@@ -1,14 +1,49 @@
 import pygame as pg
 import math
+import pathlib
 import random
 import time
+import configparser
+
+# Some service variables (don't change)
+
+PREFIX = str(pathlib.Path(__file__).parent.absolute())
+
+SERV_INFO = {
+    "DISPLAY": pg.display.Info(),
+    "NEW_ID": 0
+}
+UNIT = int(math.sqrt(SERV_INFO['DISPLAY'].current_w *
+                     SERV_INFO['DISPLAY'].current_h) // 200)
+
+SIZE = width, height = (
+        int(SERV_INFO['DISPLAY'].current_w * 0.7),
+        int(SERV_INFO['DISPLAY'].current_h * 0.6)
+        )
+
+# Game constants
+
+CONFIG = configparser.ConfigParser()
+CONFIG.read(f'{PREFIX}/constants.cfg')
+
+TANK_TURN_SPEED = CONFIG['Tank']['turn_speed']
+TANK_SPEED = CONFIG['Tank']['speed'] * UNIT
+RECHARGE_TIME = CONFIG['Tank']['recharge_time']
+RECOVERY_TIME = CONFIG['Tank']['recovery_time']
+FIRING_RANGE = CONFIG['Tank']['firing_range'] * UNIT
+
+BULLET_SPEED = CONFIG['Bullet']['speed'] * UNIT
+
+PORTALS_QUANTITY = CONFIG['Portals']['quantity']
+
+FPS = CONFIG['Miscellaneous']['fps']
 
 # Game classes
 
 
 class Tank(pg.sprite.Sprite):
-    def __init__(self, _id, first_color, center, start_angle, control_keys, second_color,
-                 shoot_color):
+    def __init__(self, first_color, center, start_angle,
+                 control_keys, shoot_color):
         super().__init__()
         self.x, self.y = center
         self.original_image = pg.Surface((int(5 * UNIT), int(5.4 * UNIT)))
@@ -19,7 +54,7 @@ class Tank(pg.sprite.Sprite):
         pg.draw.rect(self.original_image, first_color,
                      (int(4 * UNIT - 1), int(1.4 * UNIT),
                       int(4.8 * UNIT), int(5.4 * UNIT - 1)))
-        pg.draw.rect(self.original_image, second_color,
+        pg.draw.rect(self.original_image, (0, 0, 1),
                      (int(1 * UNIT), 1, int(3 * UNIT),
                       int(4.4 * UNIT)))
         pg.draw.rect(self.original_image, (0, 0, 0),
@@ -33,7 +68,10 @@ class Tank(pg.sprite.Sprite):
         self.control_keys = control_keys
         self.shoot_color = shoot_color
         self.last_shoot = time.time() - RECHARGE_TIME
-        self.id = _id
+
+        self.id = SERV_INFO['NEW_ID']
+        SERV_INFO['NEW_ID'] += 1
+
         self.is_alive = True
 
     def move(self):
@@ -50,16 +88,20 @@ class Tank(pg.sprite.Sprite):
             movement += 1
 
         if movement:
-            self.x += math.cos(math.radians(self.angle)) * movement * (TANK_SPEED / FPS)
-            self.y += math.sin(math.radians(self.angle)) * movement * (TANK_SPEED / FPS)
+            self.x += math.cos(math.radians(self.angle)) *\
+                movement * (TANK_SPEED / FPS)
+            self.y += math.sin(math.radians(self.angle)) *\
+                movement * (TANK_SPEED / FPS)
 
         if rotation:
-            self.angle += TANK_TURN_SPEED * rotation
+            self.angle += TANK_TURN_SPEED * rotation // FPS
             self.angle %= 360
 
     def try_to_shoot(self):
-        if pg.key.get_pressed()[self.control_keys['SHOOT']] and time.time() - self.last_shoot > RECHARGE_TIME:
-            missiles.add(Missile(self.rect.center, self.angle - 180, self.id, self.shoot_color))
+        if pg.key.get_pressed()[self.control_keys['SHOOT']]\
+                and time.time() - self.last_shoot > RECHARGE_TIME:
+            missiles.add(Missile(self.rect.center, self.angle -
+                                 180, self.id, self.shoot_color))
             self.last_shoot = time.time()
 
     def update(self):
@@ -111,13 +153,17 @@ class Missile(pg.sprite.Sprite):
     def update(self):
         for i in range(10):
             self.original_center = self.rect.center
-            self.image = pg.transform.rotate(self.original_image, -self.angle + 90)
+            self.image = pg.transform.rotate(
+                self.original_image, -self.angle + 90)
 
-            self.x += math.cos((math.radians(self.angle))) * (BULLET_SPEED / FPS / 10)
-            self.y += math.sin(math.radians(self.angle)) * (BULLET_SPEED / FPS / 10)
+            self.x += math.cos((math.radians(self.angle))) * \
+                (BULLET_SPEED / FPS / 10)
+            self.y += math.sin(math.radians(self.angle)) * \
+                (BULLET_SPEED / FPS / 10)
 
             coordinates = int(self.x), int(self.y)
-            self.rect = self.image.get_rect()  # Replace old rect with new rect.
+            # Replace old rect with new rect.
+            self.rect = self.image.get_rect()
             self.rect.center = coordinates
 
 
@@ -144,7 +190,10 @@ class PortalExit(pg.sprite.Sprite):
         self.rect.center = coordinates_dict.get(_id)
         self.id = _id
 
-        pg.draw.circle(self.image, color, (2 * UNIT, 2 * UNIT), 2 * UNIT, UNIT // 2)
+        pg.draw.circle(
+            self.image, color,
+                      (2 * UNIT, 2 * UNIT), 2 * UNIT, UNIT // 2
+        )
 
 
 def is_missile_in_battlefield(checked_missile):
@@ -158,42 +207,48 @@ def is_missile_in_battlefield(checked_missile):
 
 def generate_portals(quantity):
     for i in range(quantity):
-        color = (random.randint(1, 255), random.randint(1, 255), random.randint(1, 255))
-        while abs(portal_entrances_coordinates.get(i)[0] - portal_exits_coordinates.get(i)[0]) <= 10 * UNIT \
-                and abs(portal_entrances_coordinates.get(i)[1] - portal_exits_coordinates.get(i)[1]) <= 10 * UNIT:
-            portal_entrances_coordinates[i] = (random.randint(0, width), random.randint(0, height))
-            portal_exits_coordinates[i] = (random.randint(0, width), random.randint(0, height))
-        portal_entrances.add(PortalEntrance(i, portal_entrances_coordinates, color))
+        color = (random.randint(1, 255),
+                 random.randint(1, 255),
+                 random.randint(1, 255))
+
+        while abs(
+            portal_entrances_coordinates.get(i)[0] -
+            portal_exits_coordinates.get(i)[0]
+        ) <= 10 * UNIT and\
+            abs(
+            portal_entrances_coordinates.get(i)[1] -
+            portal_exits_coordinates.get(i)[1]
+        ) <= 10 * UNIT:
+            portal_entrances_coordinates[i] = (
+                random.randint(0, width),
+                random.randint(0, height)
+            )
+            portal_exits_coordinates[i] = (
+                random.randint(0, width),
+                random.randint(0, height)
+            )
+
+        portal_entrances.add(PortalEntrance(
+            i, portal_entrances_coordinates, color))
         portal_exits.add(PortalExit(i, portal_exits_coordinates, color))
     for i in portal_entrances:
         portal_entrances_colliders.append(pg.mask.from_surface(i.image))
 
 
-# Initializing PyGame
-pg.init()
-
-# Constants
-info = pg.display.Info()
-UNIT = int(math.sqrt(info.current_w * info.current_h) // 200)
-SIZE = width, height = int(info.current_w * 0.7), int(info.current_h * 0.6)
-TANK_TURN_SPEED = 2.5
-BULLET_SPEED = 100 * UNIT
-RECHARGE_TIME = 1
-TANK_SPEED = 15 * UNIT
-FPS = 30
-RECOVERY_TIME = 3
-FIRING_RANGE = 150 * UNIT
-PORTALS_QUANTITY = 12
-
 # Game groups
+
 tanks = pg.sprite.Group()
 missiles = pg.sprite.Group()
 portal_entrances = pg.sprite.Group()
 portal_exits = pg.sprite.Group()
 portal_entrances_coordinates = {
-    i: (random.randint(0, width), random.randint(0, height)) for i in range(PORTALS_QUANTITY)
+    i: (
+        random.randint(0, width),
+        random.randint(0, height)
+       ) for i in range(PORTALS_QUANTITY)
 }
-portal_exits_coordinates = {i: (random.randint(0, width), random.randint(0, height)) for i in range(PORTALS_QUANTITY)}
+portal_exits_coordinates = {i: (random.randint(0, width), random.randint(
+    0, height)) for i in range(PORTALS_QUANTITY)}
 portal_entrances_colliders = []
 
 
@@ -208,23 +263,23 @@ clock = pg.time.Clock()
 
 tanks.add(Tank(0, (255, 0, 0), (0, height // 2), -180,
                {
-                    "FORWARD": pg.K_w,
-                    "BACKWARD": pg.K_s,
-                    "RIGHT": pg.K_d,
-                    "LEFT": pg.K_a,
-                    "SHOOT": pg.K_SPACE
-                },
-               (0, 0, 1), (255, 0, 0)))
+    "FORWARD": pg.K_w,
+    "BACKWARD": pg.K_s,
+    "RIGHT": pg.K_d,
+    "LEFT": pg.K_a,
+    "SHOOT": pg.K_SPACE
+},
+    (255, 0, 0)))
 
 tanks.add(Tank(1, (0, 0, 255), (width, height // 2), 0,
                {
-                    "FORWARD": pg.K_UP,
-                    "BACKWARD": pg.K_DOWN,
-                    "RIGHT": pg.K_RIGHT,
-                    "LEFT": pg.K_LEFT,
-                    "SHOOT": pg.K_RSHIFT
-               },
-               (0, 0, 1), (0, 0, 255)))
+    "FORWARD": pg.K_UP,
+    "BACKWARD": pg.K_DOWN,
+    "RIGHT": pg.K_RIGHT,
+    "LEFT": pg.K_LEFT,
+    "SHOOT": pg.K_RSHIFT
+},
+    (0, 0, 255)))
 
 # making in-game constant objects
 generate_portals(PORTALS_QUANTITY)
@@ -261,7 +316,8 @@ while True:
             current_portal.add(portal_entrance)
 
             if pg.sprite.spritecollide(tank, current_portal, False):
-                tank.x, tank.y = (portal_exits_coordinates.get(portal_entrance.id))
+                tank.x, tank.y = (
+                    portal_exits_coordinates.get(portal_entrance.id))
 
             current_portal.remove(portal_entrance)
 
@@ -270,7 +326,8 @@ while True:
     # bullets updating
     for missile in missiles:
 
-        if (time.time() - missile.shoot_time) * BULLET_SPEED < FIRING_RANGE and is_missile_in_battlefield(missile):
+        if (time.time() - missile.shoot_time) * BULLET_SPEED < FIRING_RANGE\
+                and is_missile_in_battlefield(missile):
             missile.update()
         else:
             missiles.remove(missile)
@@ -279,16 +336,20 @@ while True:
         current_missile.add(missile)
 
         for tank in tanks:
-            if tank.is_alive and missile.master_id != tank.id and pg.sprite.spritecollide(tank, current_missile, True):
+            if tank.is_alive\
+                    and missile.master_id != tank.id\
+                    and pg.sprite.spritecollide(tank, current_missile, True):
                 last_death_time[tank.id] = time.time()
-                tank.rect.center = tank.x, tank.y = (random.randint(0, SIZE[0]), random.randint(0, SIZE[1]))
+                tank.rect.center = tank.x, tank.y = (
+                    random.randint(0, SIZE[0]), random.randint(0, SIZE[1]))
                 tank.angle = random.randint(0, 11) * 30
 
         for portal_entrance in portal_entrances:
             current_portal.add(portal_entrance)
 
             if pg.sprite.spritecollide(missile, current_portal, False):
-                missile.x, missile.y = (portal_exits_coordinates.get(portal_entrance.id))
+                missile.x, missile.y = (
+                    portal_exits_coordinates.get(portal_entrance.id))
 
             current_portal.remove(portal_entrance)
 
