@@ -5,6 +5,10 @@ import random
 import time
 import configparser
 
+# Pygame initialization
+
+pg.init()
+
 # Some service variables (don't change)
 
 PREFIX = str(pathlib.Path(__file__).parent.absolute())
@@ -17,26 +21,26 @@ UNIT = int(math.sqrt(SERV_INFO['DISPLAY'].current_w *
                      SERV_INFO['DISPLAY'].current_h) // 200)
 
 SIZE = width, height = (
-        int(SERV_INFO['DISPLAY'].current_w * 0.7),
-        int(SERV_INFO['DISPLAY'].current_h * 0.6)
-        )
+    int(SERV_INFO['DISPLAY'].current_w * 0.7),
+    int(SERV_INFO['DISPLAY'].current_h * 0.6)
+)
 
 # Game constants
 
 CONFIG = configparser.ConfigParser()
 CONFIG.read(f'{PREFIX}/constants.cfg')
 
-TANK_TURN_SPEED = CONFIG['Tank']['turn_speed']
-TANK_SPEED = CONFIG['Tank']['speed'] * UNIT
-RECHARGE_TIME = CONFIG['Tank']['recharge_time']
-RECOVERY_TIME = CONFIG['Tank']['recovery_time']
-FIRING_RANGE = CONFIG['Tank']['firing_range'] * UNIT
+TANK_TURN_SPEED = int(CONFIG['Tank']['turn_speed'])
+TANK_SPEED = int(CONFIG['Tank']['speed']) * UNIT
+RECHARGE_TIME = int(CONFIG['Tank']['recharge_time'])
+RECOVERY_TIME = int(CONFIG['Tank']['recovery_time'])
+FIRING_RANGE = int(CONFIG['Tank']['firing_range']) * UNIT
 
-BULLET_SPEED = CONFIG['Bullet']['speed'] * UNIT
+BULLET_SPEED = int(CONFIG['Bullet']['speed']) * UNIT
 
-PORTALS_QUANTITY = CONFIG['Portals']['quantity']
+PORTALS_QUANTITY = int(CONFIG['Portals']['quantity'])
 
-FPS = CONFIG['Miscellaneous']['fps']
+FPS = int(CONFIG['Miscellaneous']['fps'])
 
 # Game classes
 
@@ -151,7 +155,7 @@ class Missile(pg.sprite.Sprite):
         self.rect.center = coordinates
 
     def update(self):
-        for i in range(10):
+        for _ in range(10):
             self.original_center = self.rect.center
             self.image = pg.transform.rotate(
                 self.original_image, -self.angle + 90)
@@ -245,7 +249,7 @@ portal_entrances_coordinates = {
     i: (
         random.randint(0, width),
         random.randint(0, height)
-       ) for i in range(PORTALS_QUANTITY)
+    ) for i in range(PORTALS_QUANTITY)
 }
 portal_exits_coordinates = {i: (random.randint(0, width), random.randint(
     0, height)) for i in range(PORTALS_QUANTITY)}
