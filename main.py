@@ -4,9 +4,11 @@ import pathlib
 import random
 import time
 import configparser
+import os
 
 # Pygame initialization
 
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 pg.init()
 
 # Some service variables (don't change)
@@ -30,24 +32,24 @@ SIZE = width, height = (
 CONFIG = configparser.ConfigParser()
 CONFIG.read(f'{PREFIX}/constants.cfg')
 
-TANK_TURN_SPEED = int(CONFIG['Tank']['turn_speed'])
-TANK_SPEED = int(CONFIG['Tank']['speed']) * UNIT
-RECHARGE_TIME = int(CONFIG['Tank']['recharge_time'])
-RECOVERY_TIME = int(CONFIG['Tank']['recovery_time'])
-FIRING_RANGE = int(CONFIG['Tank']['firing_range']) * UNIT
+TANK_TURN_SPEED = float(CONFIG['Tank']['turn_speed'])
+TANK_SPEED = float(CONFIG['Tank']['speed']) * UNIT
+RECHARGE_TIME = float(CONFIG['Tank']['recharge_time'])
+RECOVERY_TIME = float(CONFIG['Tank']['recovery_time'])
+FIRING_RANGE = float(CONFIG['Tank']['firing_range']) * UNIT
 
-BULLET_SPEED = int(CONFIG['Bullet']['speed']) * UNIT
+BULLET_SPEED = float(CONFIG['Bullet']['speed']) * UNIT
 
-PORTALS_QUANTITY = int(CONFIG['Portals']['quantity'])
-
+PORTALS_QUANTITY = int(CONFIG['Miscellaneous']['portals_quantity'])
+IS_EDGES_CONNECTED = int(CONFIG['Miscellaneous']['is_edges_connected'])
 FPS = int(CONFIG['Miscellaneous']['fps'])
 
 # Game classes
 
 
 class Tank(pg.sprite.Sprite):
-    def __init__(self, first_color, center, start_angle,
-                 control_keys, shoot_color):
+    def __init__(self, center, start_angle,
+                 control_keys, first_color, shoot_color):
         super().__init__()
         self.x, self.y = center
         self.original_image = pg.Surface((int(5 * UNIT), int(5.4 * UNIT)))
@@ -98,7 +100,7 @@ class Tank(pg.sprite.Sprite):
                 movement * (TANK_SPEED / FPS)
 
         if rotation:
-            self.angle += TANK_TURN_SPEED * rotation // FPS
+            self.angle += TANK_TURN_SPEED * rotation / FPS
             self.angle %= 360
 
     def try_to_shoot(self):
@@ -114,18 +116,30 @@ class Tank(pg.sprite.Sprite):
 
         self.move()
         self.try_to_shoot()
+        if IS_EDGES_CONNECTED:
+            if self.x > width + 2.5 * UNIT:
+                self.x = -2.5 * UNIT
 
-        if self.x > width - 2.5 * UNIT:
-            self.x, self.y = width - 2.5 * UNIT, self.y
+            if self.x < -2.5 * UNIT:
+                self.x = width + 2.5 * UNIT
 
-        if self.x < 2.5 * UNIT:
-            self.x, self.y = 2.5 * UNIT, self.y
+            if self.y > height + 2.5 * UNIT:
+                self.y = -2.5 * UNIT
 
-        if self.y < 2.5 * UNIT:
-            self.x, self.y = self.x, 2.5 * UNIT
+            if self.y < -2.5 * UNIT:
+                self.y = height + 2.5 * UNIT
+        else:
+            if self.x > width - 2.5 * UNIT:
+                self.x = width - 2.5 * UNIT
 
-        if self.y > height - 2.5 * UNIT:
-            self.x, self.y = self.x, height - 2.5 * UNIT
+            if self.x < 2.5 * UNIT:
+                self.x = 2.5 * UNIT
+
+            if self.y > height - 2.5 * UNIT:
+                self.y = height - 2.5 * UNIT
+
+            if self.y < 2.5 * UNIT:
+                self.y = 2.5 * UNIT
 
         original_center = (int(self.x), int(self.y))
         self.image = pg.transform.rotate(self.original_image, -self.angle + 90)
@@ -265,17 +279,27 @@ clock = pg.time.Clock()
 
 # Game objects
 
-tanks.add(Tank(0, (255, 0, 0), (0, height // 2), -180,
+tanks.add(Tank((0, height // 2), -180,
                {
     "FORWARD": pg.K_w,
     "BACKWARD": pg.K_s,
     "RIGHT": pg.K_d,
     "LEFT": pg.K_a,
+    "SHOOT": pg.K_TAB
+},
+    (255, 0, 0), (255, 0, 0)))
+
+tanks.add(Tank((width // 2, height), 90,
+               {
+    "FORWARD": pg.K_y,
+    "BACKWARD": pg.K_h,
+    "RIGHT": pg.K_j,
+    "LEFT": pg.K_g,
     "SHOOT": pg.K_SPACE
 },
-    (255, 0, 0)))
+    (0, 255, 0), (0, 128, 0)))
 
-tanks.add(Tank(1, (0, 0, 255), (width, height // 2), 0,
+tanks.add(Tank((width, height // 2), 0,
                {
     "FORWARD": pg.K_UP,
     "BACKWARD": pg.K_DOWN,
@@ -283,7 +307,7 @@ tanks.add(Tank(1, (0, 0, 255), (width, height // 2), 0,
     "LEFT": pg.K_LEFT,
     "SHOOT": pg.K_RSHIFT
 },
-    (0, 0, 255)))
+    (0, 0, 255), (0, 0, 255)))
 
 # making in-game constant objects
 generate_portals(PORTALS_QUANTITY)
