@@ -5,6 +5,7 @@ import random
 import time
 import configparser
 import os
+from players_parameters import containment
 
 # Pygame initialization
 
@@ -43,6 +44,11 @@ BULLET_SPEED = float(CONFIG['Bullet']['speed']) * UNIT
 PORTALS_QUANTITY = int(CONFIG['Miscellaneous']['portals_quantity'])
 IS_EDGES_CONNECTED = int(CONFIG['Miscellaneous']['is_edges_connected'])
 FPS = int(CONFIG['Miscellaneous']['fps'])
+try:
+    number_of_players = int(input('Please, enter number of players in the battlefield: '))
+except:
+    number_of_players = 3
+    print('''Error in reading players quantity, It is 3 now.''')
 
 # Game classes
 
@@ -253,6 +259,12 @@ def generate_portals(quantity):
         portal_entrances_colliders.append(pg.mask.from_surface(i.image))
 
 
+def set_players(quantity_of_players):
+    for i in range(1, quantity_of_players + 1):
+        data = containment.get('player' + str(i))
+        tanks.add(Tank(data[0], data[1], data[2], data[3], data[4]))
+
+
 # Game groups
 
 tanks = pg.sprite.Group()
@@ -279,35 +291,7 @@ clock = pg.time.Clock()
 
 # Game objects
 
-tanks.add(Tank((0, height // 2), -180,
-               {
-    "FORWARD": pg.K_w,
-    "BACKWARD": pg.K_s,
-    "RIGHT": pg.K_d,
-    "LEFT": pg.K_a,
-    "SHOOT": pg.K_TAB
-},
-    (255, 0, 0), (255, 0, 0)))
-
-tanks.add(Tank((width // 2, height), 90,
-               {
-    "FORWARD": pg.K_y,
-    "BACKWARD": pg.K_h,
-    "RIGHT": pg.K_j,
-    "LEFT": pg.K_g,
-    "SHOOT": pg.K_SPACE
-},
-    (0, 255, 0), (0, 128, 0)))
-
-tanks.add(Tank((width, height // 2), 0,
-               {
-    "FORWARD": pg.K_UP,
-    "BACKWARD": pg.K_DOWN,
-    "RIGHT": pg.K_RIGHT,
-    "LEFT": pg.K_LEFT,
-    "SHOOT": pg.K_RSHIFT
-},
-    (0, 0, 255), (0, 0, 255)))
+set_players(number_of_players)
 
 # making in-game constant objects
 generate_portals(PORTALS_QUANTITY)
