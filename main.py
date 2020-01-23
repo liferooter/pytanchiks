@@ -255,8 +255,11 @@ def generate_portals(quantity):
         portal_entrances.add(PortalEntrance(
             i, portal_entrances_coordinates, color))
         portal_exits.add(PortalExit(i, portal_exits_coordinates, color))
-    for i in portal_entrances:
-        portal_entrances_colliders.append(pg.mask.from_surface(i.image))
+    while pg.sprite.groupcollide(portal_entrances, tanks, False, False):
+        for i in portal_entrances:
+            if pg.sprite.spritecollide(i, tanks, False):
+                portal_entrances_coordinates[i.id] = random.randint(0, width), random.randint(0, height)
+                i.rect.center = portal_entrances_coordinates[i.id]
 
 
 def set_players(quantity_of_players):
