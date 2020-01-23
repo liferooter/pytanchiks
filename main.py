@@ -46,6 +46,9 @@ IS_EDGES_CONNECTED = int(CONFIG['Miscellaneous']['is_edges_connected'])
 FPS = int(CONFIG['Miscellaneous']['fps'])
 try:
     number_of_players = int(input('Please, enter number of players in the battlefield: '))
+    if number_of_players > 3:
+        print('There aren`t as mauch players as you want, now there are 3 players')
+        number_of_players = 3
 except:
     number_of_players = 3
     print('''Error in reading players quantity, It is 3 now.''')
