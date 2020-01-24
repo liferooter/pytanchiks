@@ -270,15 +270,6 @@ def create_tanks(quantity):
         "SHOOT": pg.K_TAB
     },
         (255, 0, 0), (255, 0, 0))),
-        ((width // 2, height), 90,
-         {
-            "FORWARD": pg.K_y,
-            "BACKWARD": pg.K_h,
-            "RIGHT": pg.K_j,
-            "LEFT": pg.K_g,
-            "SHOOT": pg.K_SPACE
-        },
-        (0, 255, 0), (0, 128, 0)),
         ((width, height // 2), 0,
          {
             "FORWARD": pg.K_UP,
@@ -287,7 +278,16 @@ def create_tanks(quantity):
             "LEFT": pg.K_LEFT,
             "SHOOT": pg.K_RSHIFT
         },
-        (0, 0, 255), (0, 0, 255))][:quantity]
+        (0, 0, 255), (0, 0, 255)),
+                 ((width // 2, height), 90,
+         {
+            "FORWARD": pg.K_y,
+            "BACKWARD": pg.K_h,
+            "RIGHT": pg.K_j,
+            "LEFT": pg.K_g,
+            "SHOOT": pg.K_SPACE
+        },
+        (0, 255, 0), (0, 128, 0))][:quantity]
     for template in templates:
         tanks.add(Tank(*template))
 
