@@ -5,7 +5,6 @@ import random
 import time
 import configparser
 import os
-from players_parameters import containment
 
 # Pygame initialization
 
@@ -13,6 +12,7 @@ os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 pg.init()
 
 # Some service variables (don't change)
+
 
 PREFIX = str(pathlib.Path(__file__).parent.absolute())
 
@@ -42,16 +42,10 @@ FIRING_RANGE = float(CONFIG['Tank']['firing_range']) * UNIT
 BULLET_SPEED = float(CONFIG['Bullet']['speed']) * UNIT
 
 PORTALS_QUANTITY = int(CONFIG['Miscellaneous']['portals_quantity'])
+TANKS_QUANTITY = max(1, min(int(CONFIG['Miscellaneous']['tanks_quantity']), 3))
 IS_EDGES_CONNECTED = int(CONFIG['Miscellaneous']['is_edges_connected'])
 FPS = int(CONFIG['Miscellaneous']['fps'])
-try:
-    number_of_players = int(input('Please, enter number of players in the battlefield: '))
-    if number_of_players > 3:
-        print('There aren`t as mauch players as you want, now there are 3 players')
-        number_of_players = 3
-except:
-    number_of_players = 3
-    print('''Error in reading players quantity, It is 3 now.''')
+
 
 # Game classes
 
@@ -261,17 +255,44 @@ def generate_portals(quantity):
     while pg.sprite.groupcollide(portal_entrances, tanks, False, False):
         for i in portal_entrances:
             if pg.sprite.spritecollide(i, tanks, False):
-                portal_entrances_coordinates[i.id] = random.randint(0, width), random.randint(0, height)
+                portal_entrances_coordinates[i.id] = random.randint(
+                    0, width), random.randint(0, height)
                 i.rect.center = portal_entrances_coordinates[i.id]
 
 
-def set_players(quantity_of_players):
-    for i in range(1, quantity_of_players + 1):
-        data = containment.get('player' + str(i))
-        tanks.add(Tank(data[0], data[1], data[2], data[3], data[4]))
-
+def create_tanks(quantity):
+    templates = [(((0, height // 2), -180,
+                   {
+        "FORWARD": pg.K_w,
+        "BACKWARD": pg.K_s,
+        "RIGHT": pg.K_d,
+        "LEFT": pg.K_a,
+        "SHOOT": pg.K_TAB
+    },
+        (255, 0, 0), (255, 0, 0))),
+        ((width // 2, height), 90,
+         {
+            "FORWARD": pg.K_y,
+            "BACKWARD": pg.K_h,
+            "RIGHT": pg.K_j,
+            "LEFT": pg.K_g,
+            "SHOOT": pg.K_SPACE
+        },
+        (0, 255, 0), (0, 128, 0)),
+        ((width, height // 2), 0,
+         {
+            "FORWARD": pg.K_UP,
+            "BACKWARD": pg.K_DOWN,
+            "RIGHT": pg.K_RIGHT,
+            "LEFT": pg.K_LEFT,
+            "SHOOT": pg.K_RSHIFT
+        },
+        (0, 0, 255), (0, 0, 255))][:quantity]
+    for template in templates:
+        tanks.add(Tank(*template))
 
 # Game groups
+
 
 tanks = pg.sprite.Group()
 missiles = pg.sprite.Group()
@@ -297,7 +318,7 @@ clock = pg.time.Clock()
 
 # Game objects
 
-set_players(number_of_players)
+create_tanks(TANKS_QUANTITY)
 
 # making in-game constant objects
 generate_portals(PORTALS_QUANTITY)
