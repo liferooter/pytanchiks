@@ -217,6 +217,21 @@ class PortalExit(pg.sprite.Sprite):
         )
 
 
+def spritecollide(sprite, group, dokill):
+    sprite_x, sprite_y = sprite.rect.center
+    sprite_radius = min(sprite.image.get_size()) / 2
+    res = False
+    for element in group:
+        el_x, el_y = element.rect.center
+        el_radius = min(element.image.get_size()) / 2
+        if (el_x - sprite_x) ** 2 + (el_y - sprite_y) ** 2\
+                <= (sprite_radius + el_radius) ** 2:
+            if dokill:
+                element.kill()
+            res = True
+    return res
+
+
 def is_missile_in_battlefield(checked_missile):
     if checked_missile.rect.left < -10 * UNIT\
             or checked_missile.rect.right > SIZE[0] + 10 * UNIT\
@@ -254,7 +269,7 @@ def generate_portals(quantity):
         portal_exits.add(PortalExit(i, portal_exits_coordinates, color))
     while pg.sprite.groupcollide(portal_entrances, tanks, False, False):
         for i in portal_entrances:
-            if pg.sprite.spritecollide(i, tanks, False):
+            if spritecollide(i, tanks, False):
                 portal_entrances_coordinates[i.id] = random.randint(
                     0, width), random.randint(0, height)
                 i.rect.center = portal_entrances_coordinates[i.id]
@@ -267,7 +282,7 @@ def create_tanks(quantity):
         "BACKWARD": pg.K_s,
         "RIGHT": pg.K_d,
         "LEFT": pg.K_a,
-        "SHOOT": pg.K_TAB
+        "SHOOT": pg.K_LSHIFT
     },
         (255, 0, 0), (255, 0, 0))),
         ((width, height // 2), 0,
@@ -279,7 +294,7 @@ def create_tanks(quantity):
             "SHOOT": pg.K_RSHIFT
         },
         (0, 0, 255), (0, 0, 255)),
-                 ((width // 2, height), 90,
+        ((width // 2, height), 90,
          {
             "FORWARD": pg.K_y,
             "BACKWARD": pg.K_h,
@@ -312,7 +327,7 @@ portal_entrances_colliders = []
 # Game window
 screen = pg.display.set_mode(SIZE)
 pg.display.set_caption('PyTanchiks')
-logo = pg.image.load('images/logo.png')
+logo = pg.image.load(PREFIX + '/images/logo.png')
 pg.display.set_icon(logo)
 clock = pg.time.Clock()
 
@@ -354,7 +369,7 @@ while True:
         for portal_entrance in portal_entrances:
             current_portal.add(portal_entrance)
 
-            if pg.sprite.spritecollide(tank, current_portal, False):
+            if spritecollide(tank, current_portal, False):
                 tank.x, tank.y = (
                     portal_exits_coordinates.get(portal_entrance.id))
 
@@ -377,7 +392,7 @@ while True:
         for tank in tanks:
             if tank.is_alive\
                     and missile.master_id != tank.id\
-                    and pg.sprite.spritecollide(tank, current_missile, True):
+                    and spritecollide(tank, current_missile, True):
                 last_death_time[tank.id] = time.time()
                 tank.rect.center = tank.x, tank.y = (
                     random.randint(0, SIZE[0]), random.randint(0, SIZE[1]))
@@ -386,7 +401,7 @@ while True:
         for portal_entrance in portal_entrances:
             current_portal.add(portal_entrance)
 
-            if pg.sprite.spritecollide(missile, current_portal, False):
+            if spritecollide(missile, current_portal, False):
                 missile.x, missile.y = (
                     portal_exits_coordinates.get(portal_entrance.id))
 
