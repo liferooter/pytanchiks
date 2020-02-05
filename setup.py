@@ -2,6 +2,7 @@ import configparser
 import pathlib
 import math
 import pygame as pg
+import random
 
 pg.init()
 
@@ -46,21 +47,41 @@ class CheckBox(pg.sprite.Sprite):
         super().__init__()
         self.font = pg.font.SysFont(font, font_size)
         self.font_size = font_size
+        self.coordinates = coordinates
         self.checked = checked
         self.text = self.font.render(text, False, (0, 0, 1))
         self.text.set_colorkey((255, 255, 255))
         self.box = pg.Surface((min(self.text.get_size()), min(self.text.get_size())))
+        self.cross = pg.Surface(self.box.get_size())
+        pg.draw.circle(self.cross, (1, 1, 1), (self.cross.get_size()[0] // 2, self.cross.get_size()[1] // 2), self.box.get_size()[1] // 2 - int(0.75 * UNIT))
+        self.cross.set_colorkey((0, 0, 0))
         pg.draw.rect(self.box, (255, 255, 255), pg.Rect((0, 0), self.box.get_size()))
-        pg.draw.rect(self.box, (1, 1, 1), pg.Rect((0, 0), self.box.get_size()), 8)
+        pg.draw.rect(self.box, (1, 1, 1), pg.Rect((0, 0), self.box.get_size()), 1 * UNIT)
         self.image = pg.Surface((self.text.get_size()[0] + self.box.get_size()[0], self.text.get_size()[1]))
         self.image.blit(self.box, (0, 0))
         self.image.blit(self.text, (self.box.get_size()[0] + 1, 0))
         self.image.set_colorkey((0, 0, 0))
         self.rect = self.image.get_rect()
-        self.rect.left, self.rect.top = coordinates
+        self.rect.left, self.rect.top = self.coordinates
+
+    def update(self):
+        self.image = pg.Surface((self.text.get_size()[0] + self.box.get_size()[0], self.text.get_size()[1]))
+        self.image.set_colorkey((0, 0, 0))
+        self.rect = self.image.get_rect()
+        self.rect.left, self.rect.top = self.coordinates
+        self.image.blit(self.box, (0, 0))
+        self.image.blit(self.text, (self.box.get_size()[0] + 1, 0))
+        bttns = pg.mouse.get_pressed()
+        pos = pg.mouse.get_pos()
+        if bttns[0] and self.coordinates[0] <= pos[0] <= self.coordinates[0] + self.image.get_size()[0]\
+            and self.coordinates[1] <= pos[1] <= self.coordinates[1] + self.image.get_size()[1]:
+            self.checked = not self.checked
+            pg.time.wait(random.randint(140, 160))
+        if self.checked:
+            self.image.blit(self.cross, (0, 1))
 
 
-ch = CheckBox((0, 0), 'kalaka', 25)
+ch = CheckBox((0, 0), '''kalakamalaka Danya govno!''', 25, False, 'Arial black')
 screen = pg.display.set_mode(SIZE)
 while True:
     for event in pg.event.get():
@@ -68,4 +89,5 @@ while True:
             exit()
     screen.fill((200, 200, 200))
     screen.blit(ch.image, ch.rect)
+    ch.update()
     pg.display.flip()
