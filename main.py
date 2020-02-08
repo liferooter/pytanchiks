@@ -158,6 +158,7 @@ class Missile(pg.sprite.Sprite):
 
         self.shoot_time = time.time()
         self.master_id = master_id
+        self.id = master_id
         self.angle = angle
         self.original_center = coordinates
 
@@ -196,7 +197,8 @@ class PortalEntrance(pg.sprite.Sprite):
         self.image.set_colorkey((0, 0, 0))
         self.rect = self.image.get_rect()
         self.rect.center = coordinates_dict.get(_id)
-        self.id = _id
+        self._id = _id
+        self.id = -1
 
         pg.draw.circle(self.image, color, (2 * UNIT, 2 * UNIT), 2 * UNIT)
 
@@ -209,7 +211,8 @@ class PortalExit(pg.sprite.Sprite):
         self.image.set_colorkey((0, 0, 0))
         self.rect = self.image.get_rect()
         self.rect.center = coordinates_dict.get(_id)
-        self.id = _id
+        self._id = _id
+        self.id = -1
 
         pg.draw.circle(
             self.image, color,
@@ -225,7 +228,8 @@ def spritecollide(sprite, group, dokill):
         el_x, el_y = element.rect.center
         el_radius = min(element.image.get_size()) / 2
         if (el_x - sprite_x) ** 2 + (el_y - sprite_y) ** 2\
-                <= (sprite_radius + el_radius) ** 2:
+                <= (sprite_radius + el_radius) ** 2\
+                and element.id != sprite.id:
             if dokill:
                 element.kill()
             res = True
@@ -360,6 +364,11 @@ while True:
     for tank in tanks:
 
         if time.time() - last_death_time[tank.id] > RECOVERY_TIME:
+            if tank.is_alive is False:
+                tank.rect.center = tank.x, tank.y = (
+                        random.randint(0, width),
+                        random.randint(0, height)
+                        )
             screen.blit(tank.image, tank.rect)
             tank.update()
         else:
@@ -371,15 +380,21 @@ while True:
 
             if spritecollide(tank, current_portal, False):
                 tank.x, tank.y = (
-                    portal_exits_coordinates.get(portal_entrance.id))
+                    portal_exits_coordinates.get(portal_entrance._id))
 
             current_portal.remove(portal_entrance)
 
-    current_missile = pg.sprite.Group()
+        if spritecollide(tank, missiles, True):
+            last_death_time[tank.id] = time.time()
+            tank.rect.center = tank.x, tank.y = (-height, -width)
+            tank.angle = random.randint(0, 360)
 
     # bullets updating
     for missile in missiles:
 
+        if spritecollide(missile, missiles, True):
+            missile.kill()
+            continue
         if (time.time() - missile.shoot_time) * BULLET_SPEED < FIRING_RANGE\
                 and is_missile_in_battlefield(missile):
             missile.update()
@@ -387,27 +402,15 @@ while True:
             missiles.remove(missile)
             continue
 
-        current_missile.add(missile)
-
-        for tank in tanks:
-            if tank.is_alive\
-                    and missile.master_id != tank.id\
-                    and spritecollide(tank, current_missile, True):
-                last_death_time[tank.id] = time.time()
-                tank.rect.center = tank.x, tank.y = (
-                    random.randint(0, SIZE[0]), random.randint(0, SIZE[1]))
-                tank.angle = random.randint(0, 11) * 30
-
         for portal_entrance in portal_entrances:
             current_portal.add(portal_entrance)
 
             if spritecollide(missile, current_portal, False):
                 missile.x, missile.y = (
-                    portal_exits_coordinates.get(portal_entrance.id))
+                    portal_exits_coordinates.get(portal_entrance._id)
+                    )
 
             current_portal.remove(portal_entrance)
-
-        current_missile.remove(missile)
 
     missiles.draw(screen)
 
