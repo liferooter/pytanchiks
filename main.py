@@ -348,7 +348,8 @@ last_death_time = [time.time() - RECOVERY_TIME] * len(list(tanks))
 while True:
     # Check if it is time to quit
     for event in pg.event.get():
-        if event.type == pg.QUIT:
+        if event.type == pg.QUIT or pg.key.get_pressed()[pg.K_HOME]:
+            pg.quit()
             exit()
 
     # Background
