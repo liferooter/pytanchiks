@@ -1,4 +1,3 @@
-import pygame as pg
 import math
 import pathlib
 import random
@@ -9,6 +8,7 @@ import os
 # Pygame initialization
 
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
+import pygame as pg
 pg.init()
 
 # Some service variables (don't change)
@@ -55,6 +55,7 @@ class Tank(pg.sprite.Sprite):
                  control_keys, first_color, shoot_color):
         super().__init__()
         self.x, self.y = center
+        self.radius = 2.5 * UNIT
         self.original_image = pg.Surface((int(5 * UNIT), int(5.4 * UNIT)))
         self.original_image.set_colorkey((0, 0, 0))
         pg.draw.rect(self.original_image, first_color,
@@ -156,6 +157,8 @@ class Missile(pg.sprite.Sprite):
 
         self.x, self.y = coordinates
 
+        self.radius = UNIT
+
         self.shoot_time = time.time()
         self.master_id = master_id
         self.id = master_id
@@ -193,6 +196,8 @@ class PortalEntrance(pg.sprite.Sprite):
     def __init__(self, _id, coordinates_dict, color):
         super().__init__()
 
+        self.radius = 2 * UNIT
+
         self.image = pg.Surface((4 * UNIT, 4 * UNIT))
         self.image.set_colorkey((0, 0, 0))
         self.rect = self.image.get_rect()
@@ -222,13 +227,11 @@ class PortalExit(pg.sprite.Sprite):
 
 def spritecollide(sprite, group, dokill):
     sprite_x, sprite_y = sprite.rect.center
-    sprite_radius = min(sprite.image.get_size()) / 2
     res = False
     for element in group:
         el_x, el_y = element.rect.center
-        el_radius = min(element.image.get_size()) / 2
         if (el_x - sprite_x) ** 2 + (el_y - sprite_y) ** 2\
-                <= (sprite_radius + el_radius) ** 2\
+                <= (sprite.radius + element.radius) ** 2\
                 and element.id != sprite.id:
             if dokill:
                 element.kill()
