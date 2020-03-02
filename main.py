@@ -3,12 +3,10 @@ import pathlib
 import random
 import time
 import configparser
-import os
+import pygame as pg
 
 # Pygame initialization
 
-os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
-import pygame as pg
 pg.init()
 
 # Some service variables (don't change)
