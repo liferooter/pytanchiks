@@ -224,10 +224,11 @@ class PortalExit(pg.sprite.Sprite):
 
 
 class TextObject(pg.sprite.Sprite):
-    def __init__(self, text, font_file, size, color,  coord, antiallias, background):
+    def __init__(self, text, font,  coord):
         super().__init__()
-        self.font = pg.font.Font(font_file, size)
-        self.image = self.font.render(text, antiallias, color, background)
+        self.font = pg.font.Font(font['file'], font['size'])
+        self.image = self.font.render(
+            text, font['antialias'], font['color'], font['background'])
         self.image.set_colorkey((0, 0, 0))
         self.rect = self.image.get_rect()
         self.rect.center = coord
@@ -242,7 +243,6 @@ def spritecollide(sprite, group, dokill):
                 <= (sprite.radius + element.radius) ** 2\
                 and element.id != sprite.id:
             if dokill:
-                group.remove(element)
                 element.kill()
             res = True
     return res
@@ -372,8 +372,15 @@ while True:
     portal_exits.draw(screen)
 
     buff_group = pg.sprite.Group()
-    rendered_score = TextObject(' : '.join(list(map(str, score))), open(fr'{PREFIX}\\fonts\score_font.ttf'),
-                                10 * UNIT, (255, 0, 0), (width // 2, height - 5 * UNIT), True, None)
+    rendered_score = TextObject(' : '.join(list(map(str, score))),
+                                {
+        "file": open(fr'{PREFIX}/fonts/score_font.ttf'),
+        "antiallias": True,
+        "size": 10 * UNIT,
+        "color": (255, 0, 0),
+        "background": None
+    }
+        (width // 2, height - 5 * UNIT))
     screen.blit(rendered_score.image, rendered_score.rect)
 
     # Tanks update
@@ -383,9 +390,9 @@ while True:
         if time.time() - last_death_time[tank.id] > RECOVERY_TIME:
             if tank.is_alive is False:
                 tank.rect.center = tank.x, tank.y = (
-                        random.randint(0, width),
-                        random.randint(0, height)
-                        )
+                    random.randint(0, width),
+                    random.randint(0, height)
+                )
             screen.blit(tank.image, tank.rect)
             tank.update()
         else:
@@ -428,7 +435,7 @@ while True:
             if spritecollide(missile, buff_group, False):
                 missile.x, missile.y = (
                     portal_exits_coordinates.get(portal_entrance._id)
-                    )
+                )
 
             buff_group.remove(portal_entrance)
 
