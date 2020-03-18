@@ -223,6 +223,16 @@ class PortalExit(pg.sprite.Sprite):
         )
 
 
+class TextObject(pg.sprite.Sprite):
+    def __init__(self, text, font_file, size, color,  coord, antiallias, background):
+        super().__init__()
+        self.font = pg.font.Font(font_file, size)
+        self.image = self.font.render(text, antiallias, color, background)
+        self.image.set_colorkey((0, 0, 0))
+        self.rect = self.image.get_rect()
+        self.rect.center = coord
+
+
 def spritecollide(sprite, group, dokill):
     sprite_x, sprite_y = sprite.rect.center
     res = False
@@ -232,6 +242,7 @@ def spritecollide(sprite, group, dokill):
                 <= (sprite.radius + element.radius) ** 2\
                 and element.id != sprite.id:
             if dokill:
+                group.remove(element)
                 element.kill()
             res = True
     return res
@@ -327,6 +338,7 @@ portal_entrances_coordinates = {
 portal_exits_coordinates = {i: (random.randint(0, width), random.randint(
     0, height)) for i in range(PORTALS_QUANTITY)}
 portal_entrances_colliders = []
+score = [0 for i in range(TANKS_QUANTITY)]
 
 
 # Game window
@@ -359,7 +371,10 @@ while True:
     portal_entrances.draw(screen)
     portal_exits.draw(screen)
 
-    current_portal = pg.sprite.Group()
+    buff_group = pg.sprite.Group()
+    rendered_score = TextObject(' : '.join(list(map(str, score))), open(fr'{PREFIX}\\fonts\score_font.ttf'),
+                                10 * UNIT, (255, 0, 0), (width // 2, height - 5 * UNIT), True, None)
+    screen.blit(rendered_score.image, rendered_score.rect)
 
     # Tanks update
 
@@ -378,18 +393,21 @@ while True:
             continue
 
         for portal_entrance in portal_entrances:
-            current_portal.add(portal_entrance)
+            buff_group.add(portal_entrance)
 
-            if spritecollide(tank, current_portal, False):
+            if spritecollide(tank, buff_group, False):
                 tank.x, tank.y = (
                     portal_exits_coordinates.get(portal_entrance._id))
 
-            current_portal.remove(portal_entrance)
+            buff_group.remove(portal_entrance)
+        for missile in missiles:
+            buff_group.add(missile)
 
-        if spritecollide(tank, missiles, True):
-            last_death_time[tank.id] = time.time()
-            tank.rect.center = tank.x, tank.y = (-height, -width)
-            tank.angle = random.randint(0, 360)
+            if spritecollide(tank, buff_group, True):
+                last_death_time[tank.id] = time.time()
+                score[missile.master_id] += 1
+                tank.rect.center = tank.x, tank.y = (-height, -width)
+                tank.angle = random.randint(0, 360)
 
     # bullets updating
     for missile in missiles:
@@ -405,14 +423,14 @@ while True:
             continue
 
         for portal_entrance in portal_entrances:
-            current_portal.add(portal_entrance)
+            buff_group.add(portal_entrance)
 
-            if spritecollide(missile, current_portal, False):
+            if spritecollide(missile, buff_group, False):
                 missile.x, missile.y = (
                     portal_exits_coordinates.get(portal_entrance._id)
                     )
 
-            current_portal.remove(portal_entrance)
+            buff_group.remove(portal_entrance)
 
     missiles.draw(screen)
 
