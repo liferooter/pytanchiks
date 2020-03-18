@@ -36,12 +36,14 @@ TANK_SPEED = float(CONFIG['Tank']['speed']) * UNIT
 RECHARGE_TIME = float(CONFIG['Tank']['recharge_time'])
 RECOVERY_TIME = float(CONFIG['Tank']['recovery_time'])
 FIRING_RANGE = float(CONFIG['Tank']['firing_range']) * UNIT
+TANK_HP = int(CONFIG['Tank']['hp'])
 
 BULLET_SPEED = float(CONFIG['Bullet']['speed']) * UNIT
 
 PORTALS_QUANTITY = int(CONFIG['Miscellaneous']['portals_quantity'])
-TANKS_QUANTITY = max(1, min(int(CONFIG['Miscellaneous']['tanks_quantity']), 3))
+TANKS_QUANTITY = max(1, min(int(CONFIG['Miscellaneous']['tanks_quantity']), 4))
 IS_EDGES_CONNECTED = int(CONFIG['Miscellaneous']['is_edges_connected'])
+SHOW_HP = int(CONFIG['Miscellaneous']['show_hp'])
 FPS = int(CONFIG['Miscellaneous']['fps'])
 
 
@@ -53,6 +55,7 @@ class Tank(pg.sprite.Sprite):
                  control_keys, first_color, shoot_color):
         super().__init__()
         self.x, self.y = center
+        self.hp = TANK_HP
         self.radius = 2.5 * UNIT
         self.original_image = pg.Surface((int(5 * UNIT), int(5.4 * UNIT)))
         self.original_image.set_colorkey((0, 0, 0))
@@ -69,13 +72,20 @@ class Tank(pg.sprite.Sprite):
                      (int(2 * UNIT - 1), 1, int(1.4 * UNIT),
                       int(2.7 * UNIT)))
         self.image = self.original_image
+
         self.rect = self.image.get_rect()
         self.rect.center = center
         self.angle = start_angle
         self.original_center = 0
         self.control_keys = control_keys
         self.shoot_color = shoot_color
+        self.first_color = first_color
         self.last_shoot = time.time() - RECHARGE_TIME
+        if SHOW_HP:
+            self.hp_pad = TextObject(str(self.hp) + 'hp left', {"file": open(fr'{PREFIX}/fonts/hp_font.ttf'),
+                                                                "antialias": True, "size": int(4 * UNIT),
+                                                                "color": self.first_color, "background": None},
+                                     (self.rect.center[0], self.rect.top - int(2 * UNIT)))
 
         self.id = SERV_INFO['NEW_ID']
         SERV_INFO['NEW_ID'] += 1
@@ -96,20 +106,20 @@ class Tank(pg.sprite.Sprite):
             movement += 1
 
         if movement:
-            self.x += math.cos(math.radians(self.angle)) *\
-                movement * (TANK_SPEED / FPS)
-            self.y += math.sin(math.radians(self.angle)) *\
-                movement * (TANK_SPEED / FPS)
+            self.x += math.cos(math.radians(self.angle)) * \
+                      movement * (TANK_SPEED / FPS)
+            self.y += math.sin(math.radians(self.angle)) * \
+                      movement * (TANK_SPEED / FPS)
 
         if rotation:
             self.angle += TANK_TURN_SPEED * rotation / FPS
             self.angle %= 360
 
     def try_to_shoot(self):
-        if pg.key.get_pressed()[self.control_keys['SHOOT']]\
+        if pg.key.get_pressed()[self.control_keys['SHOOT']] \
                 and time.time() - self.last_shoot > RECHARGE_TIME:
             missiles.add(Missile(self.rect.center, self.angle -
-                                 180, self.id, self.shoot_color))
+                                 180, self.id, 1, self.shoot_color))
             self.last_shoot = time.time()
 
     def update(self):
@@ -118,6 +128,11 @@ class Tank(pg.sprite.Sprite):
 
         self.move()
         self.try_to_shoot()
+        if SHOW_HP:
+            self.hp_pad = TextObject(str(self.hp) + 'hp left', {"file": open(fr'{PREFIX}/fonts/hp_font.ttf'),
+                                                                "antialias": True, "size": int(4 * UNIT),
+                                                                "color": self.first_color, "background": None},
+                                     (self.rect.center[0], self.rect.top - int(2 * UNIT)))
         if IS_EDGES_CONNECTED:
             if self.x > width + 2.5 * UNIT:
                 self.x = -2.5 * UNIT
@@ -150,7 +165,7 @@ class Tank(pg.sprite.Sprite):
 
 
 class Missile(pg.sprite.Sprite):
-    def __init__(self, coordinates, angle, master_id, color=(255, 0, 255)):
+    def __init__(self, coordinates, angle, master_id, damage, color=(255, 0, 255)):
         super().__init__()
 
         self.x, self.y = coordinates
@@ -165,6 +180,7 @@ class Missile(pg.sprite.Sprite):
 
         self.image = pg.Surface((UNIT, 2 * UNIT))
         self.image.set_colorkey((0, 0, 0))
+        self.damage = damage
 
         self.original_image = self.image
 
@@ -180,9 +196,9 @@ class Missile(pg.sprite.Sprite):
                 self.original_image, -self.angle + 90)
 
             self.x += math.cos((math.radians(self.angle))) * \
-                (BULLET_SPEED / FPS / 10)
+                      (BULLET_SPEED / FPS / 10)
             self.y += math.sin(math.radians(self.angle)) * \
-                (BULLET_SPEED / FPS / 10)
+                      (BULLET_SPEED / FPS / 10)
 
             coordinates = int(self.x), int(self.y)
             # Replace old rect with new rect.
@@ -219,12 +235,12 @@ class PortalExit(pg.sprite.Sprite):
 
         pg.draw.circle(
             self.image, color,
-                      (2 * UNIT, 2 * UNIT), 2 * UNIT, UNIT // 2
+            (2 * UNIT, 2 * UNIT), 2 * UNIT, UNIT // 2
         )
 
 
 class TextObject(pg.sprite.Sprite):
-    def __init__(self, text, font,  coord):
+    def __init__(self, text, font, coord):
         super().__init__()
         self.font = pg.font.Font(font['file'], font['size'])
         self.image = self.font.render(
@@ -239,8 +255,8 @@ def spritecollide(sprite, group, dokill):
     res = False
     for element in group:
         el_x, el_y = element.rect.center
-        if (el_x - sprite_x) ** 2 + (el_y - sprite_y) ** 2\
-                <= (sprite.radius + element.radius) ** 2\
+        if (el_x - sprite_x) ** 2 + (el_y - sprite_y) ** 2 \
+                <= (sprite.radius + element.radius) ** 2 \
                 and element.id != sprite.id:
             if dokill:
                 element.kill()
@@ -249,9 +265,9 @@ def spritecollide(sprite, group, dokill):
 
 
 def is_missile_in_battlefield(checked_missile):
-    if checked_missile.rect.left < -10 * UNIT\
-            or checked_missile.rect.right > SIZE[0] + 10 * UNIT\
-            or checked_missile.rect.top < -10 * UNIT or\
+    if checked_missile.rect.left < -10 * UNIT \
+            or checked_missile.rect.right > SIZE[0] + 10 * UNIT \
+            or checked_missile.rect.top < -10 * UNIT or \
             missile.rect.bottom > SIZE[1] + 10 * UNIT:
         return False
     return True
@@ -264,13 +280,13 @@ def generate_portals(quantity):
                  random.randint(1, 255))
 
         while abs(
-            portal_entrances_coordinates.get(i)[0] -
-            portal_exits_coordinates.get(i)[0]
-        ) <= 10 * UNIT and\
-            abs(
-            portal_entrances_coordinates.get(i)[1] -
-            portal_exits_coordinates.get(i)[1]
-        ) <= 10 * UNIT:
+                portal_entrances_coordinates.get(i)[0] -
+                portal_exits_coordinates.get(i)[0]
+        ) <= 10 * UNIT and \
+                abs(
+                    portal_entrances_coordinates.get(i)[1] -
+                    portal_exits_coordinates.get(i)[1]
+                ) <= 10 * UNIT:
             portal_entrances_coordinates[i] = (
                 random.randint(0, width),
                 random.randint(0, height)
@@ -294,33 +310,41 @@ def generate_portals(quantity):
 def create_tanks(quantity):
     templates = [(((0, height // 2), -180,
                    {
-        "FORWARD": pg.K_w,
-        "BACKWARD": pg.K_s,
-        "RIGHT": pg.K_d,
-        "LEFT": pg.K_a,
-        "SHOOT": pg.K_LSHIFT
-    },
-        (255, 0, 0), (255, 0, 0))),
-        ((width, height // 2), 0,
-         {
-            "FORWARD": pg.K_UP,
-            "BACKWARD": pg.K_DOWN,
-            "RIGHT": pg.K_RIGHT,
-            "LEFT": pg.K_LEFT,
-            "SHOOT": pg.K_RSHIFT
-        },
-        (0, 0, 255), (0, 0, 255)),
-        ((width // 2, height), 90,
-         {
-            "FORWARD": pg.K_y,
-            "BACKWARD": pg.K_h,
-            "RIGHT": pg.K_j,
-            "LEFT": pg.K_g,
-            "SHOOT": pg.K_SPACE
-        },
-        (0, 255, 0), (0, 128, 0))][:quantity]
+                       "FORWARD": pg.K_w,
+                       "BACKWARD": pg.K_s,
+                       "RIGHT": pg.K_d,
+                       "LEFT": pg.K_a,
+                       "SHOOT": pg.K_LSHIFT
+                   },
+                   (255, 0, 0), (255, 0, 0))),
+                 ((width, height // 2), 0,
+                  {
+                      "FORWARD": pg.K_UP,
+                      "BACKWARD": pg.K_DOWN,
+                      "RIGHT": pg.K_RIGHT,
+                      "LEFT": pg.K_LEFT,
+                      "SHOOT": pg.K_RSHIFT
+                  },
+                  (0, 0, 255), (0, 0, 255)),
+                 ((width // 2, height), 90,
+                  {
+                      "FORWARD": pg.K_y,
+                      "BACKWARD": pg.K_h,
+                      "RIGHT": pg.K_j,
+                      "LEFT": pg.K_g,
+                      "SHOOT": pg.K_SPACE
+                  },
+                  (0, 255, 0), (0, 128, 0)),
+                 ((width // 2, 0), -90, {
+                     "FORWARD": pg.K_o,
+                     "BACKWARD": pg.K_COMMA,
+                     "RIGHT": pg.K_l,
+                     "LEFT": pg.K_k,
+                     "SHOOT": pg.K_RALT
+                 }, (255, 0, 255), (255, 255, 255))][:quantity]
     for template in templates:
         tanks.add(Tank(*template))
+
 
 # Game groups
 
@@ -340,7 +364,6 @@ portal_exits_coordinates = {i: (random.randint(0, width), random.randint(
 portal_entrances_colliders = []
 score = [0 for i in range(TANKS_QUANTITY)]
 
-
 # Game window
 screen = pg.display.set_mode(SIZE)
 pg.display.set_caption('PyTanchiks')
@@ -353,7 +376,7 @@ clock = pg.time.Clock()
 create_tanks(TANKS_QUANTITY)
 
 # making in-game constant objects
-generate_portals(PORTALS_QUANTITY)
+    generate_portals(PORTALS_QUANTITY)
 
 # generate tank revive list
 last_death_time = [time.time() - RECOVERY_TIME] * len(list(tanks))
@@ -373,14 +396,10 @@ while True:
 
     buff_group = pg.sprite.Group()
     rendered_score = TextObject(' : '.join(list(map(str, score))),
-                                {
-        "file": open(fr'{PREFIX}/fonts/score_font.ttf'),
-        "antiallias": True,
-        "size": 10 * UNIT,
-        "color": (255, 0, 0),
-        "background": None
-    }
-        (width // 2, height - 5 * UNIT))
+                                {"file": open(fr'{PREFIX}/fonts/score_font.ttf'),
+                                 "antialias": True, "size": 10 * UNIT,
+                                 "color": (255, 0, 0), "background": None},
+                                (width // 2, height - 5 * UNIT))
     screen.blit(rendered_score.image, rendered_score.rect)
 
     # Tanks update
@@ -393,7 +412,10 @@ while True:
                     random.randint(0, width),
                     random.randint(0, height)
                 )
+                tank.hp = TANK_HP
             screen.blit(tank.image, tank.rect)
+            if SHOW_HP:
+                screen.blit(tank.hp_pad.image, tank.hp_pad.rect)
             tank.update()
         else:
             tank.is_alive = False
@@ -411,10 +433,11 @@ while True:
             buff_group.add(missile)
 
             if spritecollide(tank, buff_group, True):
-                last_death_time[tank.id] = time.time()
-                score[missile.master_id] += 1
-                tank.rect.center = tank.x, tank.y = (-height, -width)
-                tank.angle = random.randint(0, 360)
+                tank.hp -= missile.damage
+                if tank.hp <= 0:
+                    last_death_time[tank.id] = time.time()
+                    score[missile.master_id] += 1
+                    tank.angle = random.randint(0, 360)
 
     # bullets updating
     for missile in missiles:
@@ -422,7 +445,7 @@ while True:
         if spritecollide(missile, missiles, True):
             missile.kill()
             continue
-        if (time.time() - missile.shoot_time) * BULLET_SPEED < FIRING_RANGE\
+        if (time.time() - missile.shoot_time) * BULLET_SPEED < FIRING_RANGE \
                 and is_missile_in_battlefield(missile):
             missile.update()
         else:
