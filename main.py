@@ -381,6 +381,10 @@ generate_portals(PORTALS_QUANTITY)
 # generate tank revive list
 last_death_time = [time.time() - RECOVERY_TIME] * len(list(tanks))
 
+
+second_start_time = time.time()
+frame_counter = 0
+
 while True:
     # Check if it is time to quit
     for event in pg.event.get():
@@ -466,5 +470,11 @@ while True:
 
     # updating screen
     pg.display.flip()
+    if time.time() - second_start_time >= 1:
+        pg.display.set_caption(f"Pytanchiks| {frame_counter} FPS")
+        frame_counter = 0
+        second_start_time = time.time()
+    else:
+        frame_counter += 1
 
     clock.tick(FPS)
